@@ -97,6 +97,21 @@ export default function Frame() {
 
   const [addFrameResult, setAddFrameResult] = useState("");
 
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/casts?fid=${session?.user?.fid}`);
+      const { casts } = await response.json();
+      const { house, scores } = await analyzeCasts(casts);
+      setHouse(house);
+      setHouseScores(scores);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  }, [session?.user?.fid]);
+
   const addFrame = useCallback(async () => {
     try {
       await sdk.actions.addFrame();
@@ -113,7 +128,7 @@ export default function Frame() {
     }
   }, []);
 
-    const initSDK = async () => {
+    const initSDK = useCallback(async () => {
       try {
         // Initialize SDK first
         await sdk.actions.ready({});
@@ -142,11 +157,12 @@ export default function Frame() {
       }
     };
     
+  useEffect(() => {
     if (sdk && session?.user?.fid) {
       initSDK();
       return () => sdk.removeAllListeners();
     }
-  }, [session?.user?.fid, addFrame, load]);
+  }, [session?.user?.fid, addFrame, load, initSDK, sdk]);
 
   if (!isSDKLoaded) {
     return <div>Loading...</div>;
