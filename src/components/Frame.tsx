@@ -76,9 +76,12 @@ async function analyzeCasts(casts: string[]) {
   const topScore = sortedHouses[0][1];
   const topHouses = sortedHouses.filter(([_, score]) => score === topScore);
   
-  return topHouses.length > 1 
-    ? HOUSES.HUFFLEPUFF // Default to Hufflepuff for ties
-    : HOUSES[sortedHouses[0][0]];
+  return {
+    house: topHouses.length > 1 
+      ? HOUSES.HUFFLEPUFF // Default to Hufflepuff for ties
+      : HOUSES[sortedHouses[0][0]],
+    scores: new Map(Array.from(houseScores.entries()).map(([key, value]) => [HOUSES[key].name, value]))
+  };
 }
 
 export default function Frame() {
@@ -86,6 +89,7 @@ export default function Frame() {
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
   const [context, setContext] = useState<Context.FrameContext>();
   const [house, setHouse] = useState<typeof HOUSES[keyof typeof HOUSES]>();
+  const [houseScores, setHouseScores] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
 
@@ -108,13 +112,6 @@ export default function Frame() {
       setAddFrameResult(`Error: ${error}`);
     }
   }, []);
-
-      } catch (error) {
-        console.error("Initialization error:", error);
-        setError(error instanceof Error ? error.message : "Unknown error");
-        setLoading(false);
-      }
-    };
 
     const initSDK = async () => {
       try {
@@ -149,7 +146,7 @@ export default function Frame() {
       initSDK();
       return () => sdk.removeAllListeners();
     }
-  }, [session?.user?.fid, addFrame]);
+  }, [session?.user?.fid, addFrame, load]);
 
   if (!isSDKLoaded) {
     return <div>Loading...</div>;
@@ -165,7 +162,7 @@ export default function Frame() {
       }}
     >
       <div className="w-[300px] mx-auto py-2 px-2">
-        {house && <HouseCard house={house} score={5} />}
+        {house && <HouseCard house={house} score={houseScores.get(house.name) || 0} />}
       </div>
     </div>
   );
