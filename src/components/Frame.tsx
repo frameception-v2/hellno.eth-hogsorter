@@ -22,25 +22,72 @@ import { createStore } from "mipd";
 import { Label } from "~/components/ui/label";
 import { PROJECT_TITLE } from "~/lib/constants";
 
-function ExampleCard() {
+function HouseCard({ house, score }: { house: typeof HOUSES[keyof typeof HOUSES], score: number }) {
   return (
-    <Card>
+    <Card style={{ borderColor: house.color }}>
       <CardHeader>
-        <CardTitle>Welcome to the Frame Template</CardTitle>
-        <CardDescription>
-          This is an example card that you can customize or remove
-        </CardDescription>
+        <CardTitle style={{ color: house.color }}>{house.name}</CardTitle>
+        <CardDescription>{house.description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <Label>Place content in a Card here.</Label>
+        <div className="flex flex-col gap-2">
+          <div>Matching traits: {house.traits.join(", ")}</div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="rounded-full h-2" 
+              style={{ 
+                width: `${Math.min(score * 20, 100)}%`,
+                backgroundColor: house.color
+              }}
+            />
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
 }
 
+async function analyzeCasts(casts: string[]) {
+  const houseScores = new Map<keyof typeof HOUSES, number>();
+  
+  // Initialize scores
+  (Object.keys(HOUSES) as (keyof typeof HOUSES)[]).forEach(house => {
+    houseScores.set(house, 0);
+  });
+
+  // Analyze each cast
+  casts.forEach(cast => {
+    const words = cast.toLowerCase().split(/\s+/);
+    
+    words.forEach(word => {
+      (Object.entries(HOUSES) as [keyof typeof HOUSES, typeof HOUSES[keyof typeof HOUSES][]).forEach(([houseKey, house]) => {
+        if (house.keywords.some(keyword => word.includes(keyword))) {
+          houseScores.set(houseKey, (houseScores.get(houseKey) || 0) + 1);
+        }
+      });
+    });
+  });
+
+  // Get house with highest score
+  let sortedHouses = Array.from(houseScores.entries())
+    .sort((a, b) => b[1] - a[1]);
+  
+  // Handle tie between first places
+  const topScore = sortedHouses[0][1];
+  const topHouses = sortedHouses.filter(([_, score]) => score === topScore);
+  
+  return topHouses.length > 1 
+    ? HOUSES.HUFFLEPUFF // Default to Hufflepuff for ties
+    : HOUSES[sortedHouses[0][0]];
+}
+
 export default function Frame() {
+  const { data: session } = useSession();
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
   const [context, setContext] = useState<Context.FrameContext>();
+  const [house, setHouse] = useState<typeof HOUSES[keyof typeof HOUSES]>();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>();
 
   const [added, setAdded] = useState(false);
 
@@ -64,10 +111,26 @@ export default function Frame() {
 
   useEffect(() => {
     const load = async () => {
-      const context = await sdk.context;
-      if (!context) {
-        return;
-      }
+      try {
+        const context = await sdk.context;
+        if (!context) {
+          throw new Error("Failed to load frame context");
+        }
+
+        // Get recent casts for the user
+        const response = await fetch(`/api/casts/${session?.user?.fid}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch casts");
+        }
+        
+        const casts: string[] = await response.json();
+        if (!casts?.length) {
+          throw new Error("No casts found for analysis");
+        }
+        
+        const houseResult = await analyzeCasts(casts);
+        setHouse(houseResult);
+        setLoading(false);
 
       setContext(context);
       setAdded(context.client.added);
