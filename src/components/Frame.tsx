@@ -22,7 +22,7 @@ import { createStore } from "mipd";
 import { Label } from "~/components/ui/label";
 import { PROJECT_TITLE } from "~/lib/constants";
 
-function HouseCard({ house, score }: { house: typeof HOUSES[keyof typeof HOUSES], score: number }) {
+function HouseCard({ house, score }: { house: typeof HOUSES[keyof typeof HOUSES]; score: number }) {
   return (
     <Card style={{ borderColor: house.color }}>
       <CardHeader>
@@ -175,7 +175,7 @@ export default function Frame() {
         console.log("PROVIDER DETAILS", providerDetails);
         // => [EIP6963ProviderDetail, EIP6963ProviderDetail, ...]
       });
-    };
+    }); // Added missing closing brace and parenthesis
     if (sdk && !isSDKLoaded) {
       console.log("Calling load");
       setIsSDKLoaded(true);
@@ -200,7 +200,7 @@ export default function Frame() {
       }}
     >
       <div className="w-[300px] mx-auto py-2 px-2">
-        <ExampleCard />
+        {house && <HouseCard house={house} score={5} />}
       </div>
     </div>
   );
