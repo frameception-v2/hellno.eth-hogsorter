@@ -60,7 +60,7 @@ async function analyzeCasts(casts: string[]) {
     const words = cast.toLowerCase().split(/\s+/);
     
     words.forEach(word => {
-      (Object.entries(HOUSES) as [keyof typeof HOUSES, typeof HOUSES[keyof typeof HOUSES][]).forEach(([houseKey, house]) => {
+      (Object.entries(HOUSES) as Array<[keyof typeof HOUSES, typeof HOUSES[keyof typeof HOUSES]]>).forEach(([houseKey, house]) => {
         if (house.keywords.some(keyword => word.includes(keyword))) {
           houseScores.set(houseKey, (houseScores.get(houseKey) || 0) + 1);
         }
