@@ -20,7 +20,7 @@ import { base, optimism } from "wagmi/chains";
 import { useSession } from "next-auth/react";
 import { createStore } from "mipd";
 import { Label } from "~/components/ui/label";
-import { PROJECT_TITLE } from "~/lib/constants";
+import { PROJECT_TITLE, HOUSES } from "~/lib/constants";
 
 function HouseCard({ house, score }: { house: typeof HOUSES[keyof typeof HOUSES]; score: number }) {
   return (
@@ -33,6 +33,7 @@ function HouseCard({ house, score }: { house: typeof HOUSES[keyof typeof HOUSES]
         <div className="flex flex-col gap-2">
           <div>Matching traits: {house.traits.join(", ")}</div>
           <div className="w-full bg-gray-200 rounded-full h-2">
+          </div>
             <div 
               className="rounded-full h-2" 
               style={{ 
@@ -175,7 +176,8 @@ export default function Frame() {
         console.log("PROVIDER DETAILS", providerDetails);
         // => [EIP6963ProviderDetail, EIP6963ProviderDetail, ...]
       });
-    }); // Added missing closing brace and parenthesis
+    });
+    
     if (sdk && !isSDKLoaded) {
       console.log("Calling load");
       setIsSDKLoaded(true);
