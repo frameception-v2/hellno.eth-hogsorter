@@ -34,14 +34,13 @@ function HouseCard({ house, score }: { house: typeof HOUSES[keyof typeof HOUSES]
           <div>Matching traits: {house.traits.join(", ")}</div>
           <div className="w-full bg-gray-200 rounded-full h-2">
           </div>
-            <div 
-              className="rounded-full h-2" 
-              style={{ 
-                width: `${Math.min(score * 20, 100)}%`,
-                backgroundColor: house.color
-              }}
-            />
-          </div>
+          <div 
+            className="rounded-full h-2" 
+            style={{ 
+              width: `${Math.min(score * 20, 100)}%`,
+              backgroundColor: house.color
+            }}
+          />
         </div>
       </CardContent>
     </Card>
@@ -110,83 +109,47 @@ export default function Frame() {
     }
   }, []);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const context = await sdk.context;
-        if (!context) {
-          throw new Error("Failed to load frame context");
-        }
-
-        // Get recent casts for the user
-        const response = await fetch(`/api/casts/${session?.user?.fid}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch casts");
-        }
-        
-        const casts: string[] = await response.json();
-        if (!casts?.length) {
-          throw new Error("No casts found for analysis");
-        }
-        
-        const houseResult = await analyzeCasts(casts);
-        setHouse(houseResult);
+      } catch (error) {
+        console.error("Initialization error:", error);
+        setError(error instanceof Error ? error.message : "Unknown error");
         setLoading(false);
-
-      setContext(context);
-      setAdded(context.client.added);
-
-      // If frame isn't already added, prompt user to add it
-      if (!context.client.added) {
-        addFrame();
       }
+    };
 
-      sdk.on("frameAdded", ({ notificationDetails }) => {
-        setAdded(true);
-      });
+    const initSDK = async () => {
+      try {
+        // Initialize SDK first
+        await sdk.actions.ready({});
+        setIsSDKLoaded(true);
+        
+        // Then load user data
+        await load();
+        
+        // Set up MIPD store after SDK is ready
+        const store = createStore();
+        store.subscribe((providerDetails) => {
+          console.log("PROVIDER DETAILS", providerDetails);
+        });
 
-      sdk.on("frameAddRejected", ({ reason }) => {
-        console.log("frameAddRejected", reason);
-      });
+        // Set up event listeners
+        sdk.on("frameAdded", () => setAdded(true));
+        sdk.on("frameAddRejected", ({ reason }) => console.log("frameAddRejected", reason));
+        sdk.on("frameRemoved", () => setAdded(false));
+        sdk.on("notificationsEnabled", (details) => console.log("notificationsEnabled", details));
+        sdk.on("notificationsDisabled", () => console.log("notificationsDisabled"));
+        sdk.on("primaryButtonClicked", () => console.log("primaryButtonClicked"));
 
-      sdk.on("frameRemoved", () => {
-        console.log("frameRemoved");
-        setAdded(false);
-      });
-
-      sdk.on("notificationsEnabled", ({ notificationDetails }) => {
-        console.log("notificationsEnabled", notificationDetails);
-      });
-      sdk.on("notificationsDisabled", () => {
-        console.log("notificationsDisabled");
-      });
-
-      sdk.on("primaryButtonClicked", () => {
-        console.log("primaryButtonClicked");
-      });
-
-      console.log("Calling ready");
-      sdk.actions.ready({});
-
-      // Set up a MIPD Store, and request Providers.
-      const store = createStore();
-
-      // Subscribe to the MIPD Store.
-      store.subscribe((providerDetails) => {
-        console.log("PROVIDER DETAILS", providerDetails);
-        // => [EIP6963ProviderDetail, EIP6963ProviderDetail, ...]
-      });
-    });
+      } catch (error) {
+        console.error("SDK initialization error:", error);
+        setError(error instanceof Error ? error.message : "Unknown SDK error");
+      }
+    };
     
-    if (sdk && !isSDKLoaded) {
-      console.log("Calling load");
-      setIsSDKLoaded(true);
-      load();
-      return () => {
-        sdk.removeAllListeners();
-      };
+    if (sdk && session?.user?.fid) {
+      initSDK();
+      return () => sdk.removeAllListeners();
     }
-  }, [isSDKLoaded, addFrame]);
+  }, [session?.user?.fid, addFrame]);
 
   if (!isSDKLoaded) {
     return <div>Loading...</div>;
